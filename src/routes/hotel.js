@@ -250,6 +250,8 @@ router.put('/hotels/edit/:id/image', upload.single('image'), (req, res) => {
       message: 'A request body is required'
     });
   }
+  console.log(req.body);
+  console.log(req.file)
   Hotel.findById(mongoose.Types.ObjectId(req.params.id))
     .then((hotel) => {
       if (req.body.applicantName) hotel.applicantName = req.body.applicantName;

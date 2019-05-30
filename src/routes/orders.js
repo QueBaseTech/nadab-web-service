@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const axios = require('axios');
+const moment = require('moment');
 const { google } = require('googleapis');
 
 const {
@@ -640,6 +641,53 @@ router.delete('/orders/:id/delete', (req, res) => {
         });
     });
 });
+
+router.get('/stats', async(req, res)=> {
+  let now = moment();
+  let currentMonth = new Date().getMonth()+1;
+  let currentYear = new Date().getFullYear();
+  let today = moment().startOf('day');
+  let week = moment().startOf('week');
+  let month = moment().startOf('month');
+  let stats = {};
+
+  stats.today = await fetchRecords(today, now);
+  stats.currentWeek = await fetchRecords(week, now);
+  stats.currentMonth = await fetchRecords(month, now);
+
+  const months = ['Janury', 'Feb', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  let y = currentYear;
+  for(let i =1; i<13;i++){
+    let _month = moment(new Date(`${y}/${i}`));
+    let _endMonth = _month.clone();
+    if(!stats.hasOwnProperty(y))
+      stats[y] = {};
+    stats[y][months[i-1]] = await fetchRecords(_month.startOf('month'), _endMonth.endOf('month'));
+    if(i == currentMonth)
+      y = currentYear-1;
+  }
+
+  res.json({
+    success: true,
+    stats
+  });
+
+});
+
+async function fetchRecords(startDate, endDate) {
+  let orders = await Order.find({ createdAt: { $gte: new Date(startDate.format()), $lte: new Date(endDate.format()) }}, { totalPrice:1, totalItems: 1, _id:0});
+  if(orders.length > 0){
+    return {
+    totalItems: orders.reduce((sum, item)=> sum+ item.totalItems, 0),
+    totalPrice: orders.reduce((sum, item)=> sum+ item.totalPrice, 0)
+    }
+  } else {
+    return {
+      totalItems: 0,
+      totalPrice: 0.0
+    }
+  }
+}
 
 module.exports = (app) => {
   app.use('/', router);
